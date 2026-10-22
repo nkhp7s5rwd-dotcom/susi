@@ -1,1 +1,151 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Teamprotokoll</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--text:#1d2330;--muted:#5b6475;--line:#c9ced8;--accent:#1f5fbf;--accent-t:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--card:#1d222b;--text:#e8ebf1;--muted:#9aa3b5;--line:#3a4252;--accent:#5b9cf5;--accent-t:#0d1520}}
+:root[data-theme="dark"]{--bg:#14171d;--card:#1d222b;--text:#e8ebf1;--muted:#9aa3b5;--line:#3a4252;--accent:#5b9cf5;--accent-t:#0d1520}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;padding:16px}
+.sheet{max-width:1000px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px}
+h1{font-size:20px;margin:0 0 12px}
+.head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.head label{font-weight:600}
+input,textarea{font:inherit;color:var(--text);background:transparent;border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+input[type=date]{width:auto}
+textarea{resize:none;overflow:hidden;min-height:60px;display:block}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{border:1px solid var(--line);padding:4px;vertical-align:top;text-align:left}
+th{background:var(--bg);padding:8px}
+th:nth-child(1){width:20%}th:nth-child(2){width:46%}th:nth-child(3){width:14%}th:nth-child(4){width:16%}th:nth-child(5){width:4%}
+td.x{text-align:center}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:8px;padding:8px 14px;cursor:pointer}
+button.p{background:var(--accent);color:var(--accent-t);border-color:var(--accent);font-weight:600}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.hint{color:var(--muted);font-size:13px;margin-top:10px}
+#printTitle{display:none}
+#gate{max-width:320px;margin:20vh auto 0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;text-align:center}
+#gate p{margin:0 0 12px;font-weight:600}
+#gate input{margin-bottom:10px}
+#gateErr{color:#c0392b;font-size:13px;min-height:18px;margin-top:8px}
+.locked .sheet{display:none}
+.unlocked #gate{display:none}
+@media print{
+  :root{--bg:#fff;--card:#fff;--text:#000;--line:#000;padding:0}
+  body{padding:0;background:#fff}
+  .sheet{border:0;padding:0;max-width:none}
+  .noprint,.x,th:nth-child(5){display:none!important}
+  h1{display:none}
+  #printTitle{display:block;font-size:16px;font-weight:600;margin-bottom:10px}
+  .head{display:none}
+  input,textarea{border:0;padding:2px;color:#000}
+  textarea{min-height:0}
+  table{min-width:0}
+  tr{break-inside:avoid}
+  th{background:#eee}
+  @page{margin:18mm}
+}
+</style>
+</head>
+<body class="locked">
+<div id="gate">
+  <p>Teamprotokoll – Passwort</p>
+  <input type="password" id="pw" placeholder="Passwort" autocomplete="off">
+  <button id="unlock" class="p">Öffnen</button>
+  <div id="gateErr"></div>
+</div>
+<div class="sheet">
+  <h1>Teamprotokoll</h1>
+  <div class="head noprint">
+    <label for="datum">Teamsitzung vom:</label>
+    <input type="date" id="datum">
+  </div>
+  <div id="printTitle"></div>
+  <div class="wrap">
+    <table>
+      <thead><tr><th>Thema</th><th>Beschreibung</th><th>Wann</th><th>Wer</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="bar noprint">
+    <button id="add">+ Zeile hinzufügen</button>
+    <button id="pdf" class="p">Als PDF exportieren</button>
+    <button id="reset">Neues Protokoll</button>
+  </div>
+  <div class="hint noprint">PDF: Im Druckdialog „Als PDF speichern“ wählen. Eingaben werden automatisch im Browser gespeichert.</div>
+</div>
+<script>
+(function(){
+  var KEY="teamprotokoll_v1";
+  var rowsEl=document.getElementById("rows"), datum=document.getElementById("datum");
+  function grow(t){t.style.height="auto";t.style.height=Math.max(60,t.scrollHeight+2)+"px";}
+  function save(){
+    var data={datum:datum.value,rows:[]};
+    rowsEl.querySelectorAll("tr").forEach(function(tr){
+      data.rows.push(Array.prototype.map.call(tr.querySelectorAll("textarea"),function(t){return t.value;}));
+    });
+    try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){}
+  }
+  function addRow(vals){
+    vals=vals||["","","",""];
+    var tr=document.createElement("tr");
+    for(var i=0;i<4;i++){
+      var td=document.createElement("td"),t=document.createElement("textarea");
+      t.value=vals[i]||"";
+      t.addEventListener("input",function(){grow(this);save();});
+      td.appendChild(t);tr.appendChild(td);
+    }
+    var x=document.createElement("td");x.className="x";
+    var b=document.createElement("button");b.textContent="✕";b.title="Zeile löschen";
+    b.addEventListener("click",function(){tr.remove();save();});
+    x.appendChild(b);tr.appendChild(x);
+    rowsEl.appendChild(tr);
+    tr.querySelectorAll("textarea").forEach(grow);
+  }
+  function fmt(v){if(!v)return "";var p=v.split("-");return p[2]+"."+p[1]+"."+p[0];}
+  function title(){document.getElementById("printTitle").textContent="Teamsitzung vom "+fmt(datum.value);}
+  function load(){
+    var d=null;
+    try{d=JSON.parse(localStorage.getItem(KEY)||"null");}catch(e){}
+    if(d&&d.rows&&d.rows.length){datum.value=d.datum||"";d.rows.forEach(addRow);}
+    else{datum.value=new Date().toISOString().slice(0,10);addRow();addRow();addRow();}
+  }
+  datum.addEventListener("input",save);
+  document.getElementById("add").addEventListener("click",function(){addRow();save();});
+  document.getElementById("pdf").addEventListener("click",function(){
+    title();rowsEl.querySelectorAll("textarea").forEach(grow);window.print();
+  });
+  document.getElementById("reset").addEventListener("click",function(){
+    if(!confirm("Alle Eingaben löschen und neues Protokoll starten?"))return;
+    rowsEl.innerHTML="";datum.value=new Date().toISOString().slice(0,10);addRow();addRow();addRow();save();
+  });
+  window.addEventListener("beforeprint",function(){title();rowsEl.querySelectorAll("textarea").forEach(grow);});
+  load();
+
+  var HASH="b77cee999c72f1afcaca7974345238f92e226d8f4afe19f9ced3cd72f69f05f2";
+  function open(){document.body.className="unlocked";rowsEl.querySelectorAll("textarea").forEach(grow);}
+  function sha(s){
+    return crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)).then(function(b){
+      return Array.prototype.map.call(new Uint8Array(b),function(x){return ("0"+x.toString(16)).slice(-2);}).join("");
+    });
+  }
+  function tryUnlock(){
+    var v=document.getElementById("pw").value;
+    sha(v).then(function(h){
+      if(h===HASH){try{sessionStorage.setItem("tp_ok","1");}catch(e){}open();}
+      else{document.getElementById("gateErr").textContent="Falsches Passwort";}
+    });
+  }
+  document.getElementById("unlock").addEventListener("click",tryUnlock);
+  document.getElementById("pw").addEventListener("keydown",function(e){if(e.key==="Enter")tryUnlock();});
+  try{if(sessionStorage.getItem("tp_ok")==="1")open();}catch(e){}
+})();
+</script>
+</body>
+</html>
 
